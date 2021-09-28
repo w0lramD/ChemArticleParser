@@ -20,16 +20,10 @@ from seqlbtoolkit.IO import set_logging, logging_args
 
 from cdp.article_constr import (
     ArticleFunctions,
-    check_html_publisher,
-    check_xml_publisher,
-    search_html_doi_publisher
+    search_html_doi_publisher,
+    search_xml_doi_publisher
 )
-from cdp.constants import (
-    HTML_LBS_TO_CHAR,
-    CHAR_TO_HTML_LBS,
-    SUPPORTED_HTML_PUBLISHERS,
-    SUPPORTED_XML_PUBLISHERS
-)
+from cdp.constants import CHAR_TO_HTML_LBS
 
 logger = logging.getLogger(__name__)
 
@@ -80,23 +74,12 @@ def parse_articles(args):
                 logger.warning(f'Failed to read {file_path}: {e}')
             soup = BeautifulSoup(contents, 'lxml')
 
-            # get the publisher
+            # get publisher and doi
             try:
-                publisher = check_html_publisher(soup)
+                doi, publisher = search_html_doi_publisher(soup)
             except Exception as e:
                 logger.warning(f'File {file_path} is from unsupported publishers. Error message: {e}')
                 continue
-
-            if publisher not in SUPPORTED_HTML_PUBLISHERS:
-                logger.warning(f'File {file_path} is from unsupported publisher {publisher}')
-                continue
-
-            #  get article dois
-            if publisher == 'wiley':
-                doi, _ = search_html_doi_publisher(soup, publisher='wiley')
-            else:
-                doi = '.'.join(os.path.split(file_path)[-1].split('.')[:-1])
-                doi = substring_mapping(doi, HTML_LBS_TO_CHAR)
 
             if publisher == 'elsevier':
                 # allow illegal nested <p>
@@ -141,18 +124,10 @@ def parse_articles(args):
 
             # get the publisher
             try:
-                publisher = check_xml_publisher(root)
+                doi, publisher = search_xml_doi_publisher(root)
             except Exception as e:
                 logger.warning(f'File {file_path} is from unsupported publishers. Error message: {e}')
                 continue
-
-            if publisher not in SUPPORTED_XML_PUBLISHERS:
-                logger.warning(f'File {file_path} is from unsupported publisher {publisher}')
-                continue
-
-            # get article doi
-            doi = '.'.join(os.path.split(file_path)[-1].split('.')[:-1])
-            doi = substring_mapping(doi, HTML_LBS_TO_CHAR)
 
             article_construct_func = getattr(ArticleFunctions, f'article_construct_xml_{publisher}')
 

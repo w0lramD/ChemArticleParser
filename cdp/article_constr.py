@@ -1,11 +1,8 @@
-from seqlbtoolkit.Text import substring_mapping
-
-from cdp.article import (
+from .article import (
     Article,
     ArticleComponentCheck
 )
-from cdp.section_extr import *
-from cdp.constants import HTML_LBS_TO_CHAR
+from .section_extr import *
 
 try:
     import xml.etree.cElementTree as ET
@@ -70,7 +67,7 @@ class ArticleFunctions:
         if not element_list:
             # print('[Warning] No section is detected!')
             article_component_check.sections = False
-        
+
         article.sections = element_list
         return article, article_component_check
 
@@ -252,11 +249,11 @@ class ArticleFunctions:
         article.title = title
 
         element_list = html_section_extract_aip(section_root=soup)
-        
+
         if not element_list:
             # print('[Warning] No section is detected!')
             article_component_check.sections = False
-            
+
         article.sections = element_list
         return article, article_component_check
 
@@ -302,11 +299,11 @@ class ArticleFunctions:
 
         # --- get body sections ---
         element_list = html_section_extract_acs(section_root=soup)
-        
+
         if not element_list:
             # print('[Warning] No section is detected!')
             article_component_check.sections = False
-    
+
         article.sections = element_list
 
         return article, article_component_check
@@ -348,11 +345,11 @@ class ArticleFunctions:
 
         # --- get body sections ---
         element_list = html_section_extract_elsevier(section_root=body)
-        
+
         if not element_list:
             # print('[Warning] No section is detected!')
             article_component_check.sections = False
-            
+
         article.sections = element_list
 
         return article, article_component_check
@@ -463,8 +460,8 @@ class ArticleFunctions:
             if section_list[i].type == ArticleElementType.SECTION_ID:
                 continue
             elif section_list[i].type == ArticleElementType.SECTION_TITLE:
-                if i > 0 and section_list[i-1].type == ArticleElementType.SECTION_ID:
-                    combined_section_title = section_list[i-1].content + ' ' + section_list[i].content
+                if i > 0 and section_list[i - 1].type == ArticleElementType.SECTION_ID:
+                    combined_section_title = section_list[i - 1].content + ' ' + section_list[i].content
                     new_section_list.append(
                         ArticleElement(type=ArticleElementType.SECTION_TITLE, content=combined_section_title)
                     )
@@ -514,8 +511,8 @@ class ArticleFunctions:
             if section_list[i].type == ArticleElementType.SECTION_ID:
                 continue
             elif section_list[i].type == ArticleElementType.SECTION_TITLE:
-                if i > 0 and section_list[i-1].type == ArticleElementType.SECTION_ID:
-                    combined_section_title = section_list[i-1].content + ' ' + section_list[i].content
+                if i > 0 and section_list[i - 1].type == ArticleElementType.SECTION_ID:
+                    combined_section_title = section_list[i - 1].content + ' ' + section_list[i].content
                     new_section_list.append(
                         ArticleElement(type=ArticleElementType.SECTION_TITLE,
                                        content=combined_section_title)
@@ -613,28 +610,57 @@ def search_html_doi_publisher(soup, publisher=None):
         publisher = check_html_publisher(soup)
 
     if publisher == 'acs':
-        doi_section = soup.find_all('div', {'class': 'article_header-doiurl'})
-        doi_url = substring_mapping(doi_section[0].text, HTML_LBS_TO_CHAR)
-        doi = '/'.join(doi_url.split('/')[-2:])
+        doi_sec = soup.find_all('div', {'class': 'article_header-doiurl'})
+        doi_url = doi_sec[0].text.strip()
+        doi = '/'.join(doi_url.split('/')[-2:]).lower()
     elif publisher == 'wiley':
-        doi_section = soup.find_all('a', {'class': 'epub-doi'})
-        doi_url = substring_mapping(doi_section[0].text, HTML_LBS_TO_CHAR)
-        doi = '/'.join(doi_url.split('/')[-2:])
+        doi_sec = soup.find_all('a', {'class': 'epub-doi'})
+        doi_url = doi_sec[0].text.strip()
+        doi = '/'.join(doi_url.split('/')[-2:]).lower()
     elif publisher == 'springer':
-        doi_section = soup.find_all('span', {'id': 'doi-url'})
-        doi_url = substring_mapping(doi_section[0].text, HTML_LBS_TO_CHAR)
-        doi = '/'.join(doi_url.split('/')[-2:])
+        doi_spans = soup.find_all('span')
+        doi_sec = None
+        for span in doi_spans:
+            span_class = span.get("class", [''])
+            span_class = ' '.join(span_class) if isinstance(span_class, list) else span_class
+            if 'bibliographic-information__value' in span_class and 'doi.org' in span.text:
+                doi_sec = span
+        doi_url = doi_sec.text.strip()
+        doi = '/'.join(doi_url.split('/')[-2:]).lower()
     elif publisher == 'rsc':
-        doi_section = soup.find_all('div', {'class': 'article_info'})
-        doi = substring_mapping(doi_section[0].a.text, HTML_LBS_TO_CHAR)
+        doi_sec = soup.find_all('div', {'class': 'article_info'})
+        doi = doi_sec[0].a.text.strip().lower()
     elif publisher == 'elsevier':
         doi_sec = soup.find_all('a', {'class': 'doi'})
-        doi_url = substring_mapping(doi_sec[0].text, HTML_LBS_TO_CHAR)
-        doi = '/'.join(doi_url.split('/')[-2:])
+        doi_url = doi_sec[0].text.strip()
+        doi = '/'.join(doi_url.split('/')[-2:]).lower()
     elif publisher == 'nature':
-        doi_sec = soup.find_all('li', {'class': re.compile('doi')})
-        doi_url = substring_mapping(doi_sec[0].text.strip().split()[-1], HTML_LBS_TO_CHAR)
-        doi = '/'.join(doi_url.split('/')[-2:])
+        doi_link = soup.find_all('a', {'data-track-action': 'view doi'})[0]
+        doi_url = doi_link.text.strip()
+        doi = '/'.join(doi_url.split('/')[-2:]).lower()
+    elif publisher == 'aip':
+        doi_sec = soup.find_all('div', {'class': 'publicationContentCitation'})
+        doi_url = doi_sec[0].text.strip()
+        doi = '/'.join(doi_url.split('/')[-2:]).lower()
+    elif publisher == 'aaas':
+        doi_sec = soup.find_all('div', {'class': 'self-citation'})
+        doi = doi_sec[0].a.text.strip().split()[-1].strip().lower()
+    else:
+        raise ValueError('Unknown publisher')
+
+    return doi, publisher
+
+
+def search_xml_doi_publisher(root, publisher=None):
+    if not publisher:
+        publisher = check_xml_publisher(root)
+
+    if publisher == 'elsevier':
+        doi_sec = list(root.iter('{http://www.elsevier.com/xml/xocs/dtd}doi'))
+        doi = doi_sec[0].text.strip().lower()
+    elif publisher == 'acs':
+        doi_sec = list(root.iter('article-id'))
+        doi = doi_sec[0].text.strip().lower()
     else:
         raise ValueError('Unknown publisher')
 

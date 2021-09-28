@@ -2,17 +2,18 @@ import copy
 import re
 import bs4
 import numpy as np
+from typing import List, Optional
 from seqlbtoolkit.Text import format_text
-from cdp.article import (
+
+from .article import (
     ArticleElement,
     ArticleElementType
 )
-from cdp.table import (
+from .table import (
     Table,
     TableRow,
     TableCell
 )
-from typing import List, Optional
 
 
 def pop_xml_element_iter(root, del_tag: List[str], popped_items: Optional[list] = None):

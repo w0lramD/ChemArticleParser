@@ -2,7 +2,8 @@ from enum import Enum
 from dataclasses import dataclass
 from typing import Optional, Union, List
 from chemdataextractor.doc import Paragraph
-from cdp.table import Table
+
+from .table import Table
 
 
 class ArticleElementType(Enum):

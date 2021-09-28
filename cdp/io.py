@@ -4,9 +4,9 @@ import itertools
 
 from chemdataextractor.doc import Paragraph
 from typing import Optional, List, Tuple
-from cdp.article import Article, ArticleElementType
-from cdp.table import Table, write_html_table, set_table_style
-from cdp.constants import *
+from .article import Article, ArticleElementType
+from .table import Table, write_html_table, set_table_style
+from .constants import *
 
 try:
     import pyautogui

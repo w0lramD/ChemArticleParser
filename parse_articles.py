@@ -18,15 +18,15 @@ except ImportError:
 from seqlbtoolkit.Text import substring_mapping
 from seqlbtoolkit.IO import set_logging, logging_args
 
-from cdp.ArticleFunction import (
+from cdp.article_constr import (
     ArticleFunctions,
     check_html_publisher,
     check_xml_publisher,
     search_html_doi_publisher
 )
-from cdp.Constants import (
-    LABELS_TO_SPECIAL_CHARACTERS,
-    FILENAME_CHARACTERS_TO_LABELS,
+from cdp.constants import (
+    HTML_LBS_TO_CHAR,
+    CHAR_TO_HTML_LBS,
     SUPPORTED_HTML_PUBLISHERS,
     SUPPORTED_XML_PUBLISHERS
 )
@@ -96,7 +96,7 @@ def parse_articles(args):
                 doi, _ = search_html_doi_publisher(soup, publisher='wiley')
             else:
                 doi = '.'.join(os.path.split(file_path)[-1].split('.')[:-1])
-                doi = substring_mapping(doi, LABELS_TO_SPECIAL_CHARACTERS)
+                doi = substring_mapping(doi, HTML_LBS_TO_CHAR)
 
             if publisher == 'elsevier':
                 # allow illegal nested <p>
@@ -120,7 +120,7 @@ def parse_articles(args):
 
             save_dir = os.path.normpath(file_path).split(os.sep)
             save_dir[-2] += '_plain'
-            save_dir[-1] = f"{substring_mapping(doi, FILENAME_CHARACTERS_TO_LABELS)}.pt"
+            save_dir[-1] = f"{substring_mapping(doi, CHAR_TO_HTML_LBS)}.pt"
             if not os.path.isdir(os.sep.join(save_dir[:-1])):
                 os.mkdir(os.sep.join(save_dir[:-1]))
             torch.save(article, os.sep.join(save_dir))
@@ -152,7 +152,7 @@ def parse_articles(args):
 
             # get article doi
             doi = '.'.join(os.path.split(file_path)[-1].split('.')[:-1])
-            doi = substring_mapping(doi, LABELS_TO_SPECIAL_CHARACTERS)
+            doi = substring_mapping(doi, HTML_LBS_TO_CHAR)
 
             article_construct_func = getattr(ArticleFunctions, f'article_construct_xml_{publisher}')
 
@@ -173,7 +173,7 @@ def parse_articles(args):
 
             save_dir = os.path.normpath(file_path).split(os.sep)
             save_dir[-2] += '_plain'
-            save_dir[-1] = f"{substring_mapping(doi, FILENAME_CHARACTERS_TO_LABELS)}.pt"
+            save_dir[-1] = f"{substring_mapping(doi, CHAR_TO_HTML_LBS)}.pt"
             if not os.path.isdir(os.sep.join(save_dir[:-1])):
                 os.mkdir(os.sep.join(save_dir[:-1]))
             torch.save(article, os.sep.join(save_dir))

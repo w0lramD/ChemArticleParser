@@ -4,9 +4,9 @@ import itertools
 
 from chemdataextractor.doc import Paragraph
 from typing import Optional, List, Tuple
-from cdp.ArticleClass import Article, ArticleElementType
-from cdp.Table import Table, write_html_table, set_table_style
-from cdp.Constants import *
+from cdp.article import Article, ArticleElementType
+from cdp.table import Table, write_html_table, set_table_style
+from cdp.constants import *
 
 try:
     import pyautogui
@@ -75,7 +75,7 @@ def download_article_windows(doi, download_path, driver_path=None):
 
     time.sleep(1)
 
-    char_map = FILENAME_CHARACTERS_TO_LABELS
+    char_map = CHAR_TO_HTML_LBS
 
     file_name = ''.join(list(map(lambda x: char_map[x] if x in char_map.keys() else x, doi))) + '.html'
     save_path = os.path.join(download_path, file_name)

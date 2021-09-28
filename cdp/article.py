@@ -1,8 +1,8 @@
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional, Union, List
-from cdp.Utils import separate_sentences
-from cdp.Table import Table
+from chemdataextractor.doc import Paragraph
+from cdp.table import Table
 
 
 class ArticleElementType(Enum):
@@ -68,24 +68,35 @@ class Article:
     def sections(self, x):
         self._sections = x
 
+    @staticmethod
+    def _separate_sentences(paragraph):
+        tokens_list = list()
+        sent_list = list()
+        para = Paragraph(paragraph)
+        for sent in para:
+            tokens = [tk.text for tk in sent.tokens]
+            tokens_list.append(tokens)
+            sent_list.append(sent.text)
+        return sent_list, tokens_list
+
     def get_sentences(self, include_title=False):
         sent_list = list()
         tokens_list = list()
         if include_title:
             sent_list += [self._title]
         if isinstance(self._abstract, str):
-            sent, tokens = separate_sentences(self._abstract)
+            sent, tokens = self._separate_sentences(self._abstract)
             sent_list += sent
             tokens_list += tokens
         elif isinstance(self._abstract, list):
             for abstr in self._abstract:
-                sent, tokens = separate_sentences(abstr)
+                sent, tokens = self._separate_sentences(abstr)
                 sent_list += sent
                 tokens_list += tokens
         for section in self._sections:
             if section.type != ArticleElementType.PARAGRAPH:
                 continue
-            sent, tokens = separate_sentences(section.content)
+            sent, tokens = self._separate_sentences(section.content)
             sent_list += sent
             tokens_list += tokens
         return sent_list, tokens_list

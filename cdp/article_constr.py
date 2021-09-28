@@ -1,11 +1,11 @@
 from seqlbtoolkit.Text import substring_mapping
 
-from cdp.ArticleClass import (
+from cdp.article import (
     Article,
     ArticleComponentCheck
 )
-from cdp.ArticleSection import *
-from cdp.Constants import LABELS_TO_SPECIAL_CHARACTERS
+from cdp.section_extr import *
+from cdp.constants import HTML_LBS_TO_CHAR
 
 try:
     import xml.etree.cElementTree as ET
@@ -614,26 +614,26 @@ def search_html_doi_publisher(soup, publisher=None):
 
     if publisher == 'acs':
         doi_section = soup.find_all('div', {'class': 'article_header-doiurl'})
-        doi_url = substring_mapping(doi_section[0].text, LABELS_TO_SPECIAL_CHARACTERS)
+        doi_url = substring_mapping(doi_section[0].text, HTML_LBS_TO_CHAR)
         doi = '/'.join(doi_url.split('/')[-2:])
     elif publisher == 'wiley':
         doi_section = soup.find_all('a', {'class': 'epub-doi'})
-        doi_url = substring_mapping(doi_section[0].text, LABELS_TO_SPECIAL_CHARACTERS)
+        doi_url = substring_mapping(doi_section[0].text, HTML_LBS_TO_CHAR)
         doi = '/'.join(doi_url.split('/')[-2:])
     elif publisher == 'springer':
         doi_section = soup.find_all('span', {'id': 'doi-url'})
-        doi_url = substring_mapping(doi_section[0].text, LABELS_TO_SPECIAL_CHARACTERS)
+        doi_url = substring_mapping(doi_section[0].text, HTML_LBS_TO_CHAR)
         doi = '/'.join(doi_url.split('/')[-2:])
     elif publisher == 'rsc':
         doi_section = soup.find_all('div', {'class': 'article_info'})
-        doi = substring_mapping(doi_section[0].a.text, LABELS_TO_SPECIAL_CHARACTERS)
+        doi = substring_mapping(doi_section[0].a.text, HTML_LBS_TO_CHAR)
     elif publisher == 'elsevier':
         doi_sec = soup.find_all('a', {'class': 'doi'})
-        doi_url = substring_mapping(doi_sec[0].text, LABELS_TO_SPECIAL_CHARACTERS)
+        doi_url = substring_mapping(doi_sec[0].text, HTML_LBS_TO_CHAR)
         doi = '/'.join(doi_url.split('/')[-2:])
     elif publisher == 'nature':
         doi_sec = soup.find_all('li', {'class': re.compile('doi')})
-        doi_url = substring_mapping(doi_sec[0].text.strip().split()[-1], LABELS_TO_SPECIAL_CHARACTERS)
+        doi_url = substring_mapping(doi_sec[0].text.strip().split()[-1], HTML_LBS_TO_CHAR)
         doi = '/'.join(doi_url.split('/')[-2:])
     else:
         raise ValueError('Unknown publisher')

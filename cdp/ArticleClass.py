@@ -1,8 +1,8 @@
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional, Union, List
-from Src.Utils import separate_sentences
-from Src.Table import Table
+from cdp.Utils import separate_sentences
+from cdp.Table import Table
 
 
 class ArticleElementType(Enum):

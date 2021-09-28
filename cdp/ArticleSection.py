@@ -3,11 +3,11 @@ import re
 import bs4
 import numpy as np
 from seqlbtoolkit.Text import format_text
-from Src.Article import (
+from cdp.ArticleClass import (
     ArticleElement,
     ArticleElementType
 )
-from Src.Table import (
+from cdp.Table import (
     Table,
     TableRow,
     TableCell

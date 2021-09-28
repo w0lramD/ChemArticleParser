@@ -1,14 +1,12 @@
-import json
 import os
 import time
 import itertools
-import xlsxwriter
 
 from chemdataextractor.doc import Paragraph
 from typing import Optional, List, Tuple
-from Src.Article import Article, ArticleElementType
-from Src.Table import Table, write_html_table, set_table_style
-from Src.Constants import *
+from cdp.ArticleClass import Article, ArticleElementType
+from cdp.Table import Table, write_html_table, set_table_style
+from cdp.Constants import *
 
 try:
     import pyautogui
@@ -25,78 +23,6 @@ try:
     import xml.etree.cElementTree as ET
 except ImportError:
     import xml.etree.ElementTree as ET
-
-
-def save_brat_format_files(folder_path, articles, extracted_info):
-    n_articles = len(articles)
-    n_digits = len(str(n_articles))
-
-    if not os.path.isdir(folder_path):
-        os.mkdir(folder_path)
-
-    for article_idx, (article, parameters) in enumerate(zip(articles, extracted_info)):
-        txt_lines = ''
-
-        doi = article.doi
-
-        article_name_idx = str(article_idx).zfill(n_digits)
-        txt_name = article_name_idx + '-' + doi.replace('/', '@') + '.txt'
-        ann_name = article_name_idx + '-' + doi.replace('/', '@') + '.ann'
-
-        txt_lines += 'doi:  ' + doi + '\n'
-
-        if article.title:
-            txt_lines += 'title:  ' + article.title + '\n\n'
-
-        if article.abstract:
-            if isinstance(article.abstract, list):
-                abstract = '\n'.join(article.abstract)
-            else:
-                abstract = article.abstract
-            txt_lines += 'Abstract:\n\n' + abstract + '\n\n'
-
-        paragraphs = article.sections
-
-        k0 = 0
-        section = 'Default Section'
-        para_spans = list()
-        for k, spans in parameters.items():
-            different_sections = False
-            for i in range(k0, k):
-                if paragraphs[i].type == ArticleElementType.SECTION_TITLE:
-                    section = paragraphs[i].content
-                    different_sections = True
-            k0 = k
-
-            if different_sections:
-                txt_lines += f'Section: {section} \n\n'
-            paragraph = paragraphs[k].content.strip()
-
-            para = Paragraph(paragraph)
-            sent_spans = [(sent.start, sent.end) for sent in para]
-
-            sent_entity_spans = list()
-            for span in spans:
-                for sent_span in sent_spans:
-                    if sent_span[0] <= span[0] < sent_span[1]:
-                        candidate_sent_span = sent_span
-                        if candidate_sent_span not in sent_entity_spans:
-                            sent_entity_spans.append(candidate_sent_span)
-            para_spans += [(sent_span[0] + len(txt_lines), sent_span[1] + len(txt_lines),
-                            paragraph[sent_span[0]:sent_span[1]]) for sent_span in sent_entity_spans]
-            txt_lines += paragraph + '\n\n'
-        txt_lines = txt_lines.rstrip() + '\n'
-
-        with open(os.path.join(folder_path, txt_name), 'w', encoding='utf-8') as f:
-            f.write(txt_lines)
-
-        ann_lines = '\n'
-        for i, para_span in enumerate(para_spans):
-            ann_lines += f'T{i+1}\tTGT-SNT {para_span[0]} {para_span[1]}\t{para_span[2]}\n'
-        ann_lines = ann_lines.strip() + '\n'
-
-        with open(os.path.join(folder_path, ann_name), 'w', encoding='utf-8') as f:
-            f.write(ann_lines)
 
 
 def scroll_down(driver_var, value):
@@ -426,124 +352,3 @@ def save_html_table(table: Table,
         outfile.write(soup.prettify())
 
     return None
-
-
-def save_jsonl_results(save_file,
-                       article,
-                       valid_sent_ids=None,
-                       named_spans=None,
-                       ner_config=None):
-    if named_spans:
-        assert ner_config, AssertionError('Need to specify ner configuration if named_spans are used')
-
-    txt_lines = ''
-    doi = article.doi
-
-    txt_lines += f"doi: {doi}\n"
-    sent_idx = 0
-    global_spans = {'sent': list()}
-    for entity_type in ner_config.entity_types:
-        global_spans[entity_type] = list()
-
-    if article.title:
-        txt_lines += f"title: {article.title}\n\n"
-
-    if article.abstract:
-        txt_lines += f"Abstract:\n\n"
-        if isinstance(article.abstract, list):
-            abstract = '\n'.join(article.abstract)
-        else:
-            abstract = article.abstract
-
-        para = Paragraph(abstract)
-        for sent in para:
-            if valid_sent_ids and sent_idx in valid_sent_ids:
-                global_spans['sent'].append((sent.start + len(txt_lines), sent.end + len(txt_lines)))
-            if named_spans and named_spans[sent_idx]:
-                for (s, e), v in named_spans[sent_idx].items():
-                    global_spans[v].append((s + sent.start + len(txt_lines), e + sent.start + len(txt_lines)))
-            sent_idx += 1
-        txt_lines += f"{abstract}\n"
-
-    if article.sections:
-        for section in article.sections:
-            if section.type == ArticleElementType.SECTION_TITLE:
-                txt_lines += f"\n{section.content}\n\n"
-            elif section.type == ArticleElementType.PARAGRAPH:
-                para = Paragraph(section.content)
-                for sent in para:
-                    if valid_sent_ids and sent_idx in valid_sent_ids:
-                        global_spans['sent'].append((sent.start + len(txt_lines), sent.end + len(txt_lines)))
-                    if named_spans and named_spans[sent_idx]:
-                        for (s, e), v in named_spans[sent_idx].items():
-                            global_spans[v].append((s + sent.start + len(txt_lines), e + sent.start + len(txt_lines)))
-                    sent_idx += 1
-                txt_lines += f"{section.content}\n\n"
-
-    txt_lines = txt_lines.rstrip()
-    labels_list = list()
-    for k, spans in global_spans.items():
-        for span in spans:
-            labels_list.append([span[0], span[1], k])
-
-    result_dict = {
-        'text': txt_lines,
-        'label': labels_list,
-        'doi': doi
-    }
-    with open(save_file, 'w', encoding='utf-8') as f:
-        json.dump(result_dict, f, ensure_ascii=False)
-    return result_dict
-
-
-def save_rop_values(out_dir, property_values_list):
-    # for backward compatibility
-    c1_list = list(filter(lambda x: x['criterion'] == 'c1', property_values_list))
-    c2_list = list(filter(lambda x: x['criterion'] == 'c2', property_values_list))
-    c3_list = list(filter(lambda x: x['criterion'] == 'c3', property_values_list))
-    gs_list = list(filter(lambda x: x['criterion'] == 'gs', property_values_list))
-
-    c1_list.sort(key=lambda x: (x['reliability'], x['doi']), reverse=True)
-    c2_list.sort(key=lambda x: (x['reliability'], x['doi']), reverse=True)
-    c3_list.sort(key=lambda x: (x['reliability'], x['doi']), reverse=True)
-    gs_list.sort(key=lambda x: (x['reliability'], x['doi']), reverse=True)
-
-    tgt_file = os.path.join(out_dir, 'ROP-Values.xlsx')
-
-    # write header
-    workbook = xlsxwriter.Workbook(tgt_file)
-    worksheet = workbook.add_worksheet('Sheet 1')
-    worksheet.write('A1', 'article idx')
-    worksheet.write('B1', 'sentence idx')
-    worksheet.write('C1', 'DOI')
-    worksheet.write('D1', 'Tc')
-    worksheet.write('E1', 'ΔH')
-    worksheet.write('F1', 'ΔS')
-    worksheet.write('G1', 'sentence')
-    worksheet.write('H1', 'local file')
-    worksheet.write('I1', 'reliability')
-
-    n_line = 2
-    article_idx = 0
-
-    prev_doi = ''
-    for proper_list in [c1_list, c2_list, gs_list, c3_list]:
-        for df_dict in proper_list:
-            curr_doi = df_dict['doi']
-            if curr_doi != prev_doi:
-                article_idx += 1
-                prev_doi = curr_doi
-            file_name = df_dict['file-name']
-            worksheet.write(f'A{n_line}', f'{article_idx}')
-            worksheet.write(f'B{n_line}', f"{df_dict['sentence-id'] + 1}")
-            worksheet.write(f'C{n_line}', 'c1')
-            worksheet.write_url(f'C{n_line}', f'https://doi.org/{df_dict["doi"]}', string=df_dict["doi"])
-            worksheet.write(f'D{n_line}', df_dict['Tc'])
-            worksheet.write(f'E{n_line}', df_dict['ΔH'])
-            worksheet.write(f'F{n_line}', df_dict['ΔS'])
-            worksheet.write(f'G{n_line}', df_dict['sentence'])
-            worksheet.write_url(f'H{n_line}', f'external:{file_name}', string=os.path.basename(file_name))
-            worksheet.write(f'I{n_line}', str(df_dict['reliability']))
-            n_line += 1
-
-    workbook.close()

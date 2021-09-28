@@ -1,11 +1,11 @@
 from seqlbtoolkit.Text import substring_mapping
 
-from Src.Article import (
+from cdp.ArticleClass import (
     Article,
     ArticleComponentCheck
 )
-from Src.ArticleSection import *
-from Src.Constants import LABELS_TO_SPECIAL_CHARACTERS
+from cdp.ArticleSection import *
+from cdp.Constants import LABELS_TO_SPECIAL_CHARACTERS
 
 try:
     import xml.etree.cElementTree as ET

@@ -1,3 +1,6 @@
+import copy
+import json
+
 import numpy as np
 from dataclasses import dataclass
 from typing import Optional, List
@@ -11,16 +14,18 @@ class TableCell:
     text: str
     width: Optional[np.int8] = 1
     height: Optional[np.int8] = 1
-    merged_above: Optional[bool] = False  # decides if the current cell belongs to the above multi-row cell
+    linked_top: Optional[bool] = False  # judge if the current cell belongs to the above multi-row cell
+    linked_left: Optional[bool] = False  # judge if the current cell belongs to the left multi-column cell
 
 
 class TableRow:
     def __init__(self, cells: List[TableCell]):
         self._cells = cells
         self._width = self._get_width()
+        self._expanded_cells = self._expand_cells()
 
     def __getitem__(self, i):
-        return self._cells[i]
+        return self.expanded_cells[i]
 
     def __len__(self):
         return self.width
@@ -37,11 +42,20 @@ class TableRow:
     def cells(self):
         return self._cells
 
+    @property
+    def expanded_cells(self):
+        return self._expanded_cells
+
     @cells.setter
-    def cells(self, x):
-        new_widths = [cell.width for cell in x]
+    def cells(self, cells):
+        new_widths = [cell.width for cell in cells]
         assert self._width == new_widths, ValueError('The width must equal to the old one!')
-        self._cells = x
+        self._cells = cells
+        self._expanded_cells = self._expand_cells()
+
+    @expanded_cells.setter
+    def expanded_cells(self, cells):
+        raise AttributeError("Assigning values to `expanded_cells` is illegal!")
 
     def __str__(self):
         cell_line = '\t'.join([cell.text for cell in self._cells]) + '\n'
@@ -52,6 +66,28 @@ class TableRow:
 
     def text(self):
         return self.__str__()
+
+    def _expand_cells(self):
+        expanded_cells = list()
+        multicolumn_cache = list()
+        cell_idx = 0
+        while True:
+            if multicolumn_cache:
+                cached_cell = copy.deepcopy(multicolumn_cache[0])
+                cached_cell.width = 1
+                cached_cell.linked_left = True
+                expanded_cells.append(cached_cell)
+                multicolumn_cache[1] -= 1
+                if multicolumn_cache[1] == 0:
+                    multicolumn_cache = list()
+            else:
+                expanded_cells.append(self._cells[cell_idx])
+                if self._cells[cell_idx].width > 1:
+                    multicolumn_cache = [self._cells[cell_idx], self._cells[cell_idx].width - 1]
+                cell_idx += 1
+            if cell_idx == len(self._cells) and not multicolumn_cache:
+                break
+        return expanded_cells
 
 
 class Table:
@@ -90,7 +126,23 @@ class Table:
 
     @property
     def shape(self):
-        return self.__len__(), len(self._rows[0]) if self._rows else 0
+        return len(self), len(self._rows[0]) if self._rows else 0
+
+    @property
+    def width(self):
+        return len(self._rows[0]) if self._rows else 0
+
+    @property
+    def n_columns(self):
+        return self.width
+
+    @property
+    def height(self):
+        return len(self)
+
+    @property
+    def n_rows(self):
+        return self.height
 
     @label.setter
     def label(self, x):
@@ -112,8 +164,12 @@ class Table:
     def footnotes(self, x):
         self._footnotes = x
 
-    def __getitem__(self, i):
-        return self._rows[i]
+    def __getitem__(self, idx):
+        if isinstance(idx, int):
+            return self.rows[idx]
+        elif isinstance(idx, tuple) and len(idx) == 2:
+            r, c = idx
+            return self.rows[r].expanded_cells[c]
 
     def __str__(self):
         lines = self._label if self._label else ''
@@ -130,7 +186,7 @@ class Table:
         return self.__str__()
 
     def _repr_html_(self):
-        return write_html_table(self).prettify()
+        return self.write_html().prettify()
 
     def text(self):
         return self.__str__()
@@ -148,7 +204,7 @@ class Table:
                 while True:
                     if cell_idx in multirow_cache:
                         _, width, text = multirow_cache[cell_idx]
-                        multirow_cell = TableCell(text, width, merged_above=True)
+                        multirow_cell = TableCell(text, width, linked_top=True)
 
                         multirow_cache[cell_idx][0] -= 1
                         assert multirow_cache[cell_idx][0] >= 0
@@ -156,7 +212,7 @@ class Table:
                             multirow_cache.pop(cell_idx)
 
                         # check if we have already appended the multi-row cells before
-                        if cell.text == text and cell.merged_above is True:
+                        if cell.text == text and cell.linked_top is True:
                             pass
                         else:
                             cell_idx += width
@@ -174,6 +230,61 @@ class Table:
         self._rows = formatted_rows
         return self
 
+    def to_lists(self):
+        element_list = list()
+        for i in range(self.height):
+            row_elements = list()
+            for j in range(self.width):
+                row_elements.append(self[i, j].text)
+            element_list.append(row_elements)
+        return element_list
+
+    def write_html(self, root: Optional[bs4.element.Tag] = None):
+        soup = BeautifulSoup()
+
+        if root is None:
+            root = BeautifulSoup()
+        html_table = soup.new_tag('table')
+        root.insert(len(root), html_table)
+
+        if self.caption:
+            caption = soup.new_tag('caption')
+            html_table.insert(len(html_table), caption)
+            if self.label and self.label != '<EMPTY>':
+                cap_txt = f'{self.label} {self.caption}'
+            else:
+                cap_txt = self.caption
+            caption.insert(0, cap_txt)
+
+        tbody = soup.new_tag('tbody')
+        html_table.insert(len(html_table), tbody)
+        for row in self.rows:
+            table_row = soup.new_tag('tr')
+            tbody.insert(len(tbody), table_row)
+
+            for entry in row.cells:
+                if entry.linked_top:
+                    continue
+                table_data = soup.new_tag('td', colspan=str(entry.width), rowspan=str(entry.height))
+                table_row.insert(len(table_row), table_data)
+                table_data.insert(0, entry.text)
+
+        if self.footnotes:
+            tfoot = soup.new_tag('tfoot')
+            html_table.insert(len(html_table), tfoot)
+            for footnote in self.footnotes:
+                table_row = soup.new_tag('tr')
+                tfoot.insert(len(tfoot), table_row)
+                table_data = soup.new_tag('td', colspan=str(self.rows[0].width) if self.rows else 1)
+                table_row.insert(0, table_data)
+                table_data.insert(0, footnote)
+
+        return root
+
+    def save_json(self, file_name):
+        with open(file_name, 'w', encoding='UTF-8') as f:
+            json.dump(self.to_lists(), f, indent=2, ensure_ascii=False)
+
 
 def set_table_style(root: bs4.element.Tag):
     soup = BeautifulSoup()
@@ -190,7 +301,7 @@ def set_table_style(root: bs4.element.Tag):
           margin-top: 1.5em;
           margin-bottom: 1.5em;
         }
-        
+
         caption {
           margin-bottom: 0.5em;
         }
@@ -219,47 +330,4 @@ def set_table_style(root: bs4.element.Tag):
         }
         """
     style.insert(0, style_string)
-    return root
-
-
-def write_html_table(table: Table, root: Optional[bs4.element.Tag] = None):
-    soup = BeautifulSoup()
-
-    if root is None:
-        root = BeautifulSoup()
-    html_table = soup.new_tag('table')
-    root.insert(len(root), html_table)
-
-    if table.caption:
-        caption = soup.new_tag('caption')
-        html_table.insert(len(html_table), caption)
-        if table.label and table.label != '<EMPTY>':
-            cap_txt = f'{table.label} {table.caption}'
-        else:
-            cap_txt = table.caption
-        caption.insert(0, cap_txt)
-
-    tbody = soup.new_tag('tbody')
-    html_table.insert(len(html_table), tbody)
-    for row in table.rows:
-        table_row = soup.new_tag('tr')
-        tbody.insert(len(tbody), table_row)
-
-        for entry in row.cells:
-            if entry.merged_above:
-                continue
-            table_data = soup.new_tag('td', colspan=str(entry.width), rowspan=str(entry.height))
-            table_row.insert(len(table_row), table_data)
-            table_data.insert(0, entry.text)
-
-    if table.footnotes:
-        tfoot = soup.new_tag('tfoot')
-        html_table.insert(len(html_table), tfoot)
-        for footnote in table.footnotes:
-            table_row = soup.new_tag('tr')
-            tfoot.insert(len(tfoot), table_row)
-            table_data = soup.new_tag('td', colspan=str(table.rows[0].width) if table.rows else 1)
-            table_row.insert(0, table_data)
-            table_data.insert(0, footnote)
-
     return root

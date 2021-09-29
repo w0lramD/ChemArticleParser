@@ -5,7 +5,7 @@ import itertools
 from chemdataextractor.doc import Paragraph
 from typing import Optional, List, Tuple
 from .article import Article, ArticleElementType
-from .table import Table, write_html_table, set_table_style
+from .table import Table, set_table_style
 from .constants import *
 
 try:
@@ -282,7 +282,7 @@ def save_html_results(save_file, article, valid_sent_ids=None, named_spans=None)
                     sent_span.insert(0, txt)
                 sent_idx += 1
         elif section.type == ArticleElementType.TABLE:
-            write_html_table(section.content, sec_div)
+            section.content.write_html(sec_div)
 
     soup_str = soup.prettify().replace('&lt;', '<').replace('&gt;', '>')
     with open(save_file, 'w', encoding='utf-8') as outfile:
@@ -345,7 +345,7 @@ def save_html_table(table: Table,
     html_body = soup.new_tag('body', style="width: 85%; margin:auto auto;")
     soup.insert(len(soup), html_body)
 
-    write_html_table(table, html_body)
+    table.write_html(html_body)
 
     file_name = save_name if save_name and save_name.lower().endswith('.html') else 'text.html'
     with open(file_name, 'w', encoding='utf-8') as outfile:

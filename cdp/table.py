@@ -230,7 +230,7 @@ class Table:
         self._rows = formatted_rows
         return self
 
-    def to_lists(self):
+    def body_to_lists(self):
         element_list = list()
         for i in range(self.height):
             row_elements = list()
@@ -282,8 +282,13 @@ class Table:
         return root
 
     def save_json(self, file_name):
+        json_elements = {
+            'caption': self.caption,
+            'body': self.body_to_lists(),
+            'footnotes': self.footnotes
+        }
         with open(file_name, 'w', encoding='UTF-8') as f:
-            json.dump(self.to_lists(), f, indent=2, ensure_ascii=False)
+            json.dump(json_elements, f, indent=2, ensure_ascii=False)
 
 
 def set_table_style(root: bs4.element.Tag):

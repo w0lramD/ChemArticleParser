@@ -1,21 +1,30 @@
 import copy
 import logging
-from dataclasses import dataclass
 from seqlbtoolkit.Eval import Metric
-from typing import Optional, List
+from typing import Optional, List, Union
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
 class Sentence:
-    text: str
-    start_idx: Optional[int] = None
-    end_idx: Optional[int] = None
-    anno: Optional[dict] = None
-    anno_groups: Optional[List[Metric]] = None
 
-    def __post_init__(self):
+    def __init__(
+            self,
+            text: str,
+            start_idx: Optional[int] = None,
+            end_idx: Optional[int] = None,
+            anno: Optional[dict] = None,
+            anno_groups: Optional[List[Metric]] = None
+    ):
+        self.text = text
+        self.tokens: Union[List[str], None] = None
+        self.start_idx = start_idx
+        self.end_idx = end_idx
+        self.anno = anno
+        self.anno_groups = anno_groups
+        self._post_init()
+
+    def _post_init(self):
         if self.start_idx is None:
             self.start_idx = 0
         if self.end_idx is None:
@@ -24,6 +33,18 @@ class Sentence:
             self.anno = dict()
         if self.anno_groups is None:
             self.anno_groups = list()
+        self.tokens = self.word_tokenize()
+
+    # noinspection PyTypeChecker
+    def word_tokenize(self) -> List[str]:
+        from chemdataextractor.doc import Paragraph as CDEParagraph
+        para = CDEParagraph(self.text)
+
+        tokens = list()
+        for tk in para.tokens:
+            tokens.append(tk.text)
+
+        return tokens
 
 
 class Paragraph:
@@ -33,6 +54,7 @@ class Paragraph:
                  anno: Optional[dict] = None,
                  anno_groups: Optional[List[Metric]] = None):
         self.text = text
+        self.tokens: Union[List[List[str]], None] = None
         self.sentences = sentences
         self.anno = anno if anno is not None else dict()
         self.anno_groups = anno_groups if anno_groups is not None else list()
@@ -65,6 +87,8 @@ class Paragraph:
 
             self.update_paragraph_anno()
 
+        self.tokens = [s.tokens for s in self.sentences]
+
         if not self.char_idx_to_sent_idx:
             self._get_char_idx_to_sent_idx()
 
@@ -82,8 +106,8 @@ class Paragraph:
 
     # noinspection PyTypeChecker
     def sentence_tokenize(self):
-        from chemdataextractor.doc import Paragraph
-        para = Paragraph(self.text)
+        from chemdataextractor.doc import Paragraph as CDEParagraph
+        para = CDEParagraph(self.text)
 
         sents = list()
         for sent in para.sentences:

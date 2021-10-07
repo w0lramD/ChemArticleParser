@@ -177,7 +177,7 @@ def save_html_results(save_file, article, valid_sent_ids=None, named_spans=None)
     result_list = soup.new_tag('ol')
     result_div.insert(len(result_div), result_list)
 
-    sents, _ = article.get_sentences()
+    sents, _ = article.get_sentences_and_tokens()
     for idx in valid_sent_ids:
         result_p = soup.new_tag('li')
         result_list.insert(len(result_list), result_p)

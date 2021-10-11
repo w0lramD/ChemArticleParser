@@ -199,6 +199,8 @@ def html_section_extract_rsc(section_root: bs4.element.Tag,
             elif child_name == 'p':
                 # the article cannot start with paragraph
                 if not element_list:
+                    if 'abstract' in child_class.lower():
+                        element_list.append("<abs>")
                     continue
                 element_type = ArticleElementType.PARAGRAPH
                 target_txt = format_text(child.text)
@@ -210,7 +212,12 @@ def html_section_extract_rsc(section_root: bs4.element.Tag,
                             html_section_extract_rsc(section_root=child, element_list=element_list, n_h2=n_h2)
                         continue
                     cid = child.get('id', '')
-                    if element_list[-1].type != ArticleElementType.SECTION_TITLE and 'sec' not in cid:
+                    if len(element_list) == 1 and element_list[0] == '<abs>':
+                        element_type = ArticleElementType.PARAGRAPH
+                        target_txt = format_text(child.text)
+                        element_list[0] = ArticleElement(type=element_type, content=target_txt)
+                        continue
+                    elif element_list[-1].type != ArticleElementType.SECTION_TITLE and 'sec' not in cid:
                         continue
                 element_type = ArticleElementType.PARAGRAPH
                 target_txt = format_text(child.text)

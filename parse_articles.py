@@ -18,12 +18,12 @@ except ImportError:
 from seqlbtoolkit.Text import substring_mapping
 from seqlbtoolkit.IO import set_logging, logging_args
 
-from cdp.article_constr import (
+from cap.article_constr import (
     ArticleFunctions,
     search_html_doi_publisher,
     search_xml_doi_publisher
 )
-from cdp.constants import CHAR_TO_HTML_LBS
+from cap.constants import CHAR_TO_HTML_LBS
 
 logger = logging.getLogger(__name__)
 

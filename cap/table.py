@@ -1,11 +1,10 @@
+import bs4
 import copy
 import json
-
 import numpy as np
+
 from dataclasses import dataclass
 from typing import Optional, List
-
-import bs4
 from bs4 import BeautifulSoup
 
 

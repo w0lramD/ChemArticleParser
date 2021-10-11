@@ -1,13 +1,17 @@
+import os
+from typing import Tuple
+
+from bs4 import BeautifulSoup
+try:
+    import xml.etree.cElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
+
 from .article import (
     Article,
     ArticleComponentCheck
 )
 from .section_extr import *
-
-try:
-    import xml.etree.cElementTree as ET
-except ImportError:
-    import xml.etree.ElementTree as ET
 
 
 class ArticleFunctions:
@@ -19,6 +23,7 @@ class ArticleFunctions:
         article = Article()
         article_component_check = ArticleComponentCheck()
         article.doi = doi
+        article.publisher = 'nature'
 
         # --- get title ---
         head = soup.head
@@ -76,6 +81,7 @@ class ArticleFunctions:
         article = Article()
         article_component_check = ArticleComponentCheck()
         article.doi = doi
+        article.publisher = 'wiley'
 
         # --- get title ---
         title = soup.find_all('title')
@@ -126,6 +132,7 @@ class ArticleFunctions:
         article = Article()
         article_component_check = ArticleComponentCheck()
         article.doi = doi
+        article.publisher = 'rsc'
 
         # --- get title ---
         head = soup.head
@@ -169,6 +176,7 @@ class ArticleFunctions:
         article = Article()
         article_component_check = ArticleComponentCheck()
         article.doi = doi
+        article.publisher = 'springer'
 
         # --- get title ---
         head = soup.head
@@ -241,6 +249,7 @@ class ArticleFunctions:
         article = Article()
         article_component_check = ArticleComponentCheck()
         article.doi = doi
+        article.publisher = 'aip'
 
         # --- get title ---
         head = soup.head
@@ -262,6 +271,7 @@ class ArticleFunctions:
         article = Article()
         article_component_check = ArticleComponentCheck()
         article.doi = doi
+        article.publisher = 'acs'
 
         # --- get title ---
         head = soup.head
@@ -313,6 +323,7 @@ class ArticleFunctions:
         article = Article()
         article_component_check = ArticleComponentCheck()
         article.doi = doi
+        article.publisher = 'elsevier'
 
         # --- get title ---
         head = soup.head
@@ -359,6 +370,7 @@ class ArticleFunctions:
         article = Article()
         article_component_check = ArticleComponentCheck()
         article.doi = doi
+        article.publisher = 'aaas'
 
         # --- get title ---
         head = soup.head
@@ -397,6 +409,7 @@ class ArticleFunctions:
         article = Article()
         article_component_check = ArticleComponentCheck()
         article.doi = doi
+        article.publisher = 'elsevier'
 
         ori_txt = root.findall(r'{http://www.elsevier.com/xml/svapi/article/dtd}originalText')[0]
         doc = ori_txt.findall(r'{http://www.elsevier.com/xml/xocs/dtd}doc')[0]
@@ -479,6 +492,7 @@ class ArticleFunctions:
         article = Article()
         article_component_check = ArticleComponentCheck()
         article.doi = doi
+        article.publisher = 'acs'
 
         front = root.findall('front')[0]
 
@@ -665,3 +679,63 @@ def search_xml_doi_publisher(root, publisher=None):
         raise ValueError('Unknown publisher')
 
     return doi, publisher
+
+
+def parse_html(file_path: str) -> Tuple[Article, ArticleComponentCheck]:
+    """
+    Parse html files
+
+    Parameters
+    ----------
+    file_path: File name
+
+    Returns
+    -------
+    article: Article, component check: ArticleComponentCheck
+    """
+    file_path = os.path.normpath(file_path)
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        contents = f.read()
+    soup = BeautifulSoup(contents, 'lxml')
+
+    # get publisher and doi
+    doi, publisher = search_html_doi_publisher(soup)
+
+    if publisher == 'elsevier':
+        # allow illegal nested <p>
+        soup = BeautifulSoup(contents, 'html.parser')
+    elif publisher == 'rsc':
+        # allow nested <span>
+        soup = BeautifulSoup(contents, 'html5lib')
+
+    article_construct_func = getattr(ArticleFunctions, f'article_construct_html_{publisher}')
+    article, component_check = article_construct_func(soup=soup, doi=doi)
+
+    return article, component_check
+
+
+def parse_xml(file_path: str) -> Tuple[Article, ArticleComponentCheck]:
+    """
+    Parse xml files
+
+    Parameters
+    ----------
+    file_path: File name
+
+    Returns
+    -------
+    article: Article, component check: ArticleComponentCheck
+    """
+    file_path = os.path.normpath(file_path)
+
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+
+    # get the publisher
+    doi, publisher = search_xml_doi_publisher(root)
+
+    article_construct_func = getattr(ArticleFunctions, f'article_construct_xml_{publisher}')
+    article, component_check = article_construct_func(root=root, doi=doi)
+
+    return article, component_check

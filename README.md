@@ -1,4 +1,4 @@
-# chem-doc-parsing
+# Chemistry Article Parser
 Convert HTML/XML Chemistry/Material Science articles into plain text.
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg?color=purple)](https://www.python.org/)

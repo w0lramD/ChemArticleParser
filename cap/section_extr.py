@@ -313,6 +313,45 @@ def html_section_extract_aip(section_root: bs4.element.Tag,
     return element_list
 
 
+def get_leaf_section_elements(soup: bs4.BeautifulSoup, text=None):
+    """
+    Support function for `article_construct_html_elsevier`
+    """
+    if text is None:
+        text = ['']
+
+    block_name = soup.name
+    if isinstance(soup, bs4.element.Tag):
+        root_class = soup.attrs.get('class', '')
+        if isinstance(root_class, list):
+            root_class = ''.join(root_class)
+    else:
+        root_class = ''
+
+    if re.match(r"h[0-9]", block_name):
+        element_type = ArticleElementType.SECTION_TITLE
+        target_txt = format_text(soup.text)
+        text.append(ArticleElement(type=element_type, content=target_txt))
+        text.append('')
+        return None
+    elif block_name == 'p':
+        text.append('')
+    elif block_name == 'div' and 'tables' in root_class:
+        element_type = ArticleElementType.TABLE
+        tbl = html_table_extract_elsevier(soup)
+        text.append(ArticleElement(type=element_type, content=tbl))
+        text.append('')
+    elif 'figure' in block_name:
+        return None
+
+    for child in soup.children:
+        if isinstance(child, bs4.element.NavigableString):
+            text[-1] += str(child)
+        else:
+            get_leaf_section_elements(child, text=text)
+    return text
+
+
 def html_section_extract_elsevier(section_root: bs4.element.Tag,
                                   element_list: Optional[List] = None,
                                   record_data: Optional[bool] = False):
@@ -335,14 +374,14 @@ def html_section_extract_elsevier(section_root: bs4.element.Tag,
         try:
             # if the child is a section
             if block_name == 'section':
-                sec_id = child.get('id', '')
+                sec_id = child.get('id', '').lower()
                 if (not sec_id.startswith('s')) and ('sec' not in sec_id):
                     sub_secs = child.find_all('section')
 
                     exist_sub_para = False
                     for sub_sec in sub_secs:
-                        sec_id = sub_sec.get('id', '')
-                        if sec_id.startswith('s') or ('sec' in sec_id):
+                        sub_sec_id = sub_sec.get('id', '').lower()
+                        if sub_sec_id.startswith('s') or ('sec' in sub_sec_id):
                             exist_sub_para = True
                             break
                     if exist_sub_para:
@@ -353,6 +392,24 @@ def html_section_extract_elsevier(section_root: bs4.element.Tag,
                         )
                     else:
                         continue
+                elif not child.find_all('section'):  # leaf section
+                    if record_data:
+                        ele_list = get_leaf_section_elements(child)
+                        new_list = list()
+                        for ele in ele_list:
+                            if not ele:
+                                continue
+                            if not isinstance(ele, str):
+                                new_list.append(ele)
+                            else:
+                                sub_txt = ele.split('\n')
+                                for txt in sub_txt:
+                                    if not txt:
+                                        continue
+                                    element_type = ArticleElementType.PARAGRAPH
+                                    target_txt = format_text(txt)
+                                    new_list.append(ArticleElement(type=element_type, content=target_txt))
+                        element_list += new_list
                 else:
                     html_section_extract_elsevier(
                         section_root=child,

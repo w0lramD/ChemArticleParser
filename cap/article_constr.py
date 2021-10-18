@@ -164,6 +164,8 @@ class ArticleFunctions:
         # --- get sections ---
 
         element_list = html_section_extract_rsc(section_root=body)
+        if '<abs>' in element_list:
+            element_list.remove('<abs>')
         if not element_list:
             # print('[Warning] No section is detected!')
             article_component_check.sections = False
@@ -625,12 +627,10 @@ def search_html_doi_publisher(soup, publisher=None):
 
     if publisher == 'acs':
         doi_sec = soup.find_all('div', {'class': 'article_header-doiurl'})
-        doi_url = doi_sec[0].text.strip()
-        doi = '/'.join(doi_url.split('/')[-2:]).lower()
+        doi_url = doi_sec[0].text.strip().lower()
     elif publisher == 'wiley':
         doi_sec = soup.find_all('a', {'class': 'epub-doi'})
-        doi_url = doi_sec[0].text.strip()
-        doi = '/'.join(doi_url.split('/')[-2:]).lower()
+        doi_url = doi_sec[0].text.strip().lower()
     elif publisher == 'springer':
         doi_spans = soup.find_all('span')
         doi_sec = None
@@ -639,28 +639,30 @@ def search_html_doi_publisher(soup, publisher=None):
             span_class = ' '.join(span_class) if isinstance(span_class, list) else span_class
             if 'bibliographic-information__value' in span_class and 'doi.org' in span.text:
                 doi_sec = span
-        doi_url = doi_sec.text.strip()
-        doi = '/'.join(doi_url.split('/')[-2:]).lower()
+        doi_url = doi_sec.text.strip().lower()
     elif publisher == 'rsc':
         doi_sec = soup.find_all('div', {'class': 'article_info'})
-        doi = doi_sec[0].a.text.strip().lower()
+        doi_url = doi_sec[0].a.text.strip().lower()
     elif publisher == 'elsevier':
         doi_sec = soup.find_all('a', {'class': 'doi'})
-        doi_url = doi_sec[0].text.strip()
-        doi = '/'.join(doi_url.split('/')[-2:]).lower()
+        doi_url = doi_sec[0].text.strip().lower()
     elif publisher == 'nature':
         doi_link = soup.find_all('a', {'data-track-action': 'view doi'})[0]
-        doi_url = doi_link.text.strip()
-        doi = '/'.join(doi_url.split('/')[-2:]).lower()
+        doi_url = doi_link.text.strip().lower()
     elif publisher == 'aip':
         doi_sec = soup.find_all('div', {'class': 'publicationContentCitation'})
-        doi_url = doi_sec[0].text.strip()
-        doi = '/'.join(doi_url.split('/')[-2:]).lower()
+        doi_url = doi_sec[0].text.strip().lower()
     elif publisher == 'aaas':
         doi_sec = soup.find_all('div', {'class': 'self-citation'})
-        doi = doi_sec[0].a.text.strip().split()[-1].strip().lower()
+        doi_url = doi_sec[0].a.text.strip().split()[-1].strip().lower()
     else:
         raise ValueError('Unknown publisher')
+
+    doi_url_prefix = "https://doi.org/"
+    try:
+        doi = doi_url[doi_url.index(doi_url_prefix) + len(doi_url_prefix):].strip()
+    except ValueError:
+        doi = doi_url
 
     return doi, publisher
 
@@ -702,10 +704,9 @@ def parse_html(file_path: str) -> Tuple[Article, ArticleComponentCheck]:
     # get publisher and doi
     doi, publisher = search_html_doi_publisher(soup)
 
-    if publisher == 'elsevier':
+    if publisher in ['elsevier', 'rsc']:
         # allow illegal nested <p>
-        soup = BeautifulSoup(contents, 'html.parser')
-    elif publisher == 'rsc':
+        # soup = BeautifulSoup(contents, 'html.parser')
         # allow nested <span>
         soup = BeautifulSoup(contents, 'html5lib')
 

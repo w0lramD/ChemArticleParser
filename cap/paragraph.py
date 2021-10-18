@@ -1,8 +1,8 @@
 import copy
 import logging
+import functools
 from typing import Optional, List, Union, Dict, Callable, Tuple
 from seqlbtoolkit.Eval import Metric
-from functools import lru_cache
 from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
@@ -80,7 +80,7 @@ class Sentence:
         return self._anno[DEFAULT_ANNO_SOURCE]
 
     @property
-    @lru_cache(maxsize=None)
+    @functools.lru_cache(maxsize=None)
     def all_anno(self):
         annos = dict()
         for src, anno in self._anno.items():
@@ -100,6 +100,7 @@ class Sentence:
                 raise ValueError("Unknown annotation type!")
         else:
             logger.warning("Input annotation is emtpy!")
+        self.all_anno.fget.cache_clear()
 
     def __str__(self):
         return self.text
@@ -250,7 +251,7 @@ class Paragraph:
         return self._anno[DEFAULT_ANNO_SOURCE]
 
     @property
-    @lru_cache(maxsize=None)
+    @functools.lru_cache(maxsize=None)
     def all_anno(self):
         annos = dict()
         for src, anno in self._anno.items():
@@ -270,6 +271,7 @@ class Paragraph:
                 raise ValueError("Unknown annotation type!")
         else:
             logger.warning("Input annotation is emtpy!")
+        self.all_anno.fget.cache_clear()
 
     def align_anno(self):
         """
@@ -381,7 +383,7 @@ class Paragraph:
     def __getitem__(self, item):
         return self.sentences[item]
 
-    def get_anno_with_value(self, value: Union[List[str], str]):
+    def get_anno_by_value(self, value: Union[List[str], str]):
         if isinstance(value, str):
             value = [value]
         filtered_dict = dict(filter(lambda item: item[1] in value, self.all_anno.items()))

@@ -1,9 +1,13 @@
+import functools
+import logging
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional, Union, List, Tuple
 
 from .table import Table
 from .paragraph import Paragraph, Sentence
+
+logger = logging.getLogger(__name__)
 
 
 class ArticleElementType(Enum):
@@ -19,7 +23,9 @@ class ArticleElement:
     content: Union[Paragraph, Table, str]
 
     def __post_init__(self):
-        if self.type == ArticleElementType.PARAGRAPH and isinstance(self.content, str) and len(self.content) > 0:
+        if self.type == ArticleElementType.PARAGRAPH and isinstance(self.content, str):
+            # if len(self.content) == 0:
+            #     logger.warning("Encountered empty content!")
             self.content = Paragraph(text=self.content)
 
 
@@ -112,7 +118,7 @@ class Article:
     def abstract(self, abstract_: Union[Paragraph, str, List[str]]):
         if isinstance(abstract_, str):
             self._abstract = Paragraph(abstract_)
-        elif isinstance(abstract_, list) and isinstance(abstract_[0], str):
+        elif isinstance(abstract_, list) and abstract_ and isinstance(abstract_[0], str):
             paras = list()
             for para in abstract_:
                 para = para.strip()
@@ -123,11 +129,23 @@ class Article:
         else:
             self._abstract = abstract_
         self._set_sec_id_to_sec()
+        self.get_sentences_and_tokens.cache_clear()
 
     @sections.setter
     def sections(self, sections_: ArticleElement):
         self._sections = sections_
+        self._clear_empty_sections()
         self._set_sec_id_to_sec()
+        self.get_sentences_and_tokens.cache_clear()
+
+    def _clear_empty_sections(self):
+        new_sections = list()
+        for section in self.sections:
+            if section.type != ArticleElementType.PARAGRAPH:
+                new_sections.append(section)
+            elif section.content.text:
+                new_sections.append(section)
+        self._sections = new_sections
 
     def __getitem__(self, item: Union[str, Tuple[str, int]]):
         if isinstance(item, str):
@@ -146,6 +164,7 @@ class Article:
                 self._sec_id_to_sec[f'sec_{i}'] = sec.content
         return self
 
+    @functools.lru_cache()
     def get_sentences_and_tokens(self, include_title=False):
         sent_list = list()
         tokens_list = list()

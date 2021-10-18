@@ -1,4 +1,6 @@
 import os
+import json
+import glob
 import time
 import itertools
 from typing import Optional, List, Tuple
@@ -7,7 +9,6 @@ from bs4 import BeautifulSoup, Tag
 from seqlbtoolkit.Text import substring_mapping
 from seqlbtoolkit.Data import sort_tuples_by_element_idx
 from .article import Article, ArticleElementType
-from .table import Table, set_table_style
 from .constants import *
 
 try:
@@ -239,7 +240,7 @@ def save_html_results(save_path: str,
         abs_txt = abs_para.text
 
         for tag in tags_to_highlight:
-            spans = list(abs_para.get_anno_with_value(tag).keys())
+            spans = list(abs_para.get_anno_by_value(tag).keys())
             if spans:
                 abs_txt, inst_ids = html_mark_spans(abs_txt, spans, abs_para.text, tag, f"result-{inst_idx}")
                 inst_idx += 1
@@ -266,7 +267,7 @@ def save_html_results(save_path: str,
             txt = para.text
 
             for tag in tags_to_highlight:
-                spans = list(para.get_anno_with_value(tag).keys())
+                spans = list(para.get_anno_by_value(tag).keys())
                 if spans:
                     txt, inst_ids = html_mark_spans(txt, spans, para.text, tag, f"result-{inst_idx}")
                     inst_idx += 1
@@ -322,7 +323,7 @@ def html_mark_spans(text: str,
     """
     if ori_text:
         import textspan
-        spans = [s[0] for s in textspan.align_spans(spans, ori_text, text)]
+        spans = [(s[0][0], s[-1][-1]) for s in textspan.align_spans(spans, ori_text, text)]
     spans = sort_tuples_by_element_idx(spans)
 
     merged_spans = list(itertools.chain(*spans))
@@ -336,3 +337,17 @@ def html_mark_spans(text: str,
         i += 2
         ids.append(id_str)
     return ''.join(splitted_str), ids
+
+
+def get_file_paths(input_dir: str):
+    if os.path.isfile(input_dir):
+        with open(input_dir, 'r', encoding='utf-8') as f:
+            file_list = json.load(f)
+    elif os.path.isdir(input_dir):
+        folder = input_dir
+        file_list = list()
+        for suffix in ('xml', 'html'):
+            file_list += glob.glob(os.path.join(folder, f"*.{suffix}"))
+    else:
+        raise FileNotFoundError("Input file does not exist!")
+    return file_list

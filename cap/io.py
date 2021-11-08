@@ -6,8 +6,8 @@ import itertools
 from typing import Optional, List, Tuple
 from bs4 import BeautifulSoup, Tag
 
-from seqlbtoolkit.Text import substring_mapping
-from seqlbtoolkit.Data import sort_tuples_by_element_idx
+from seqlbtoolkit.text import substring_mapping
+from seqlbtoolkit.data import sort_tuples_by_element_idx
 from .article import Article, ArticleElementType
 from .constants import *
 

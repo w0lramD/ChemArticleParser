@@ -227,9 +227,7 @@ class ArticleFunctions:
         content_sections = list()
         for i, section in enumerate(sections):
             try:
-                if i == abstract_idx:
-                    pass
-                else:
+                if i != abstract_idx and not section.find_parent('section'):
                     content_sections.append(section)
             except KeyError:
                 pass

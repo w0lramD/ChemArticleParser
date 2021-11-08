@@ -2,7 +2,7 @@ import copy
 import logging
 import functools
 from typing import Optional, List, Union, Dict, Callable, Tuple
-from seqlbtoolkit.Eval import Metric
+from seqlbtoolkit.eval import Metric
 from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
@@ -77,13 +77,13 @@ class Sentence:
 
     @property
     def base_anno(self):
-        return self._anno[DEFAULT_ANNO_SOURCE]
+        return self.anno[DEFAULT_ANNO_SOURCE]
 
     @property
     @functools.lru_cache(maxsize=None)
     def all_anno(self):
         annos = dict()
-        for src, anno in self._anno.items():
+        for src, anno in self.anno.items():
             for span, v in anno.items():
                 if span not in annos.keys():
                     annos[span] = v
@@ -100,7 +100,10 @@ class Sentence:
                 raise ValueError("Unknown annotation type!")
         else:
             logger.warning("Input annotation is emtpy!")
-        self.all_anno.fget.cache_clear()
+        try:
+            delattr(self, 'all_anno')
+        except Exception:
+            pass
 
     def __str__(self):
         return self.text
@@ -140,7 +143,7 @@ class Sentence:
 
             updated_dict[src] = dict(OrderedDict(sorted(tmp_dict.items())))
 
-        self._anno = updated_dict
+        self.anno = updated_dict
         return self
 
 
@@ -248,13 +251,13 @@ class Paragraph:
 
     @property
     def base_anno(self):
-        return self._anno[DEFAULT_ANNO_SOURCE]
+        return self.anno[DEFAULT_ANNO_SOURCE]
 
     @property
     @functools.lru_cache(maxsize=None)
     def all_anno(self):
         annos = dict()
-        for src, anno in self._anno.items():
+        for src, anno in self.anno.items():
             for span, v in anno.items():
                 if span not in annos.keys():
                     annos[span] = v
@@ -271,7 +274,10 @@ class Paragraph:
                 raise ValueError("Unknown annotation type!")
         else:
             logger.warning("Input annotation is emtpy!")
-        self.all_anno.fget.cache_clear()
+        try:
+            delattr(self, 'all_anno')
+        except Exception:
+            pass
 
     def align_anno(self):
         """
@@ -412,5 +418,5 @@ class Paragraph:
 
             updated_dict[src] = dict(OrderedDict(sorted(tmp_dict.items())))
 
-        self._anno = updated_dict
+        self.anno = updated_dict
         return self
